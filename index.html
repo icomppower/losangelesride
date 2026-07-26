@@ -16,6 +16,8 @@
   #title h1{margin:0;font-size:19px;font-weight:300;letter-spacing:7px;}
   #title p{margin:4px 0 0;font-size:11px;opacity:.7;letter-spacing:3px;}
   #hint{position:fixed;right:26px;bottom:22px;z-index:10;color:#ffe6c8;opacity:.5;font-size:12px;letter-spacing:1px;text-align:right;line-height:1.8;pointer-events:none;text-shadow:0 1px 8px rgba(0,0,0,.6);transition:opacity 2s;}
+  #tour{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:11;display:none;color:#dff3ff;background:rgba(12,20,30,.5);border:1px solid rgba(120,200,255,.4);border-radius:999px;padding:8px 20px;font-size:13px;letter-spacing:2px;backdrop-filter:blur(4px);text-shadow:0 1px 6px rgba(0,0,0,.6);pointer-events:none;white-space:nowrap;box-shadow:0 4px 18px rgba(0,0,0,.35);}
+  body.touch #tour{top:auto;bottom:calc(104px + env(safe-area-inset-bottom));font-size:11px;padding:6px 14px;letter-spacing:1px;}
   #mini{position:fixed;right:22px;top:20px;z-index:11;width:150px;height:150px;border-radius:12px;border:1px solid rgba(255,220,180,.22);background:rgba(20,12,10,.35);backdrop-filter:blur(3px);box-shadow:0 6px 24px rgba(0,0,0,.4);}
   #overlay{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(180deg, rgba(30,16,30,.72), rgba(60,20,18,.8));backdrop-filter:blur(6px);color:#ffe6c8;transition:opacity .8s;}
   #overlay h1{font-size:46px;font-weight:200;letter-spacing:12px;margin:0 0 4px;background:linear-gradient(90deg,#ffd9a0,#ff9a5a,#e8698f);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
@@ -55,17 +57,18 @@
 <div id="vignette"></div>
 <canvas id="mini"></canvas>
 <div id="title"><h1>CITY OF ANGELS</h1><p>LOS ANGELES · GOLDEN HOUR</p></div>
+<div id="tour"></div>
 <div id="hud"><div id="speed">0<span> MPH</span></div><div id="gear">DOWNTOWN</div></div>
-<div id="hint">W / ↑ · throttle &nbsp; S / ↓ · brake<br>A D / ← → · steer &nbsp; SPACE · drift<br>C · camera &nbsp; R · reset</div>
+<div id="hint">W / ↑ · throttle &nbsp; S / ↓ · brake<br>A D / ← → · steer &nbsp; SPACE · drift<br>C · camera &nbsp; R · reset &nbsp; T · landmark tour</div>
 <div id="toast"></div>
 <div id="touchui">
-  <div class="tz"><div class="tbtn" id="tLeft">◀</div><div class="tbtn" id="tRight">▶</div></div>
+  <div class="tz"><div class="tbtn small" id="tTour">TOUR</div><div class="tbtn" id="tLeft">◀</div><div class="tbtn" id="tRight">▶</div></div>
   <div class="tz"><div class="tbtn small" id="tCam">CAM</div><div class="tbtn small" id="tDrift">DRIFT</div><div class="tbtn" id="tBrake">▼</div><div class="tbtn big" id="tGas">▲</div></div>
 </div>
 <div id="overlay">
   <h1>CITY OF ANGELS</h1>
   <h2>3D LOS ANGELES · FREE DRIVE</h2>
-  <div class="keys">W A S D / ARROWS — DRIVE&nbsp;&nbsp;·&nbsp;&nbsp;SPACE — DRIFT<br>C — CAMERA&nbsp;&nbsp;·&nbsp;&nbsp;R — RESET&nbsp;&nbsp;·&nbsp;&nbsp;H — HOLLYWOOD<br><span style="opacity:.7">◆ find US Bank Tower · City Hall · Capitol Records · Disney Hall · Griffith · the Hollywood Sign</span></div>
+  <div class="keys">W A S D / ARROWS — DRIVE&nbsp;&nbsp;·&nbsp;&nbsp;SPACE — DRIFT&nbsp;&nbsp;·&nbsp;&nbsp;C — CAMERA<br>R — RESET&nbsp;&nbsp;·&nbsp;&nbsp;H — HOLLYWOOD&nbsp;&nbsp;·&nbsp;&nbsp;T — LANDMARK TOUR<br><span style="opacity:.7">◆ US Bank · City Hall · Capitol Records · Disney Hall · Griffith · Randy's Donuts · LAX Theme · Dodger Stadium · Hollywood Sign</span></div>
   <button id="startBtn">DRIVE</button>
 </div>
 
@@ -104,6 +107,20 @@ const composer=new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene,camera));
 const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.55,0.7,0.82);
 composer.addPass(bloom);
+
+// ---------- environment map (golden-sky reflections for metal/glass) ----------
+(function envMap(){
+  const c=document.createElement('canvas');c.width=256;c.height=128;const x=c.getContext('2d');
+  const g=x.createLinearGradient(0,0,0,128);
+  g.addColorStop(0,'#33528e');g.addColorStop(0.45,'#e79a5e');g.addColorStop(0.62,'#ffcf8c');g.addColorStop(1,'#7a5a44');
+  x.fillStyle=g;x.fillRect(0,0,256,128);
+  const sg=x.createRadialGradient(48,42,2,48,42,46);sg.addColorStop(0,'#fff6e0');sg.addColorStop(0.4,'rgba(255,210,140,.8)');sg.addColorStop(1,'rgba(255,200,120,0)');
+  x.fillStyle=sg;x.fillRect(0,0,150,96);
+  const tex=new THREE.CanvasTexture(c);tex.mapping=THREE.EquirectangularReflectionMapping;
+  const pmrem=new THREE.PMREMGenerator(renderer);pmrem.compileEquirectangularShader();
+  scene.environment=pmrem.fromEquirectangular(tex).texture;
+  tex.dispose();pmrem.dispose();
+})();
 
 // ---------- lighting (golden hour) ----------
 const hemi=new THREE.HemisphereLight(0xffe0b8,0x5a4048,1.35); scene.add(hemi);
@@ -311,9 +328,51 @@ function lmDisney(x,z){
   reg(x,z,'WALT DISNEY CONCERT HALL','WDCH',26,26,20);
 }
 
-// place landmarks on chosen downtown/Hollywood grid cells, then mark the cells taken
+// Randy's Donuts — little shop with a giant rooftop donut
+function lmRandys(x,z){
+  const shop=new THREE.Mesh(new THREE.BoxGeometry(28,10,20),new THREE.MeshStandardMaterial({color:0xece4d6,roughness:0.85}));
+  shop.position.set(x,5,z);shop.castShadow=true;shop.receiveShadow=true;bldgGroup.add(shop);
+  const donut=new THREE.Mesh(new THREE.TorusGeometry(9,3.6,16,30),new THREE.MeshStandardMaterial({color:0xcaa15e,roughness:0.75}));
+  donut.position.set(x,23,z);donut.castShadow=true;bldgGroup.add(donut);
+  const frost=new THREE.Mesh(new THREE.TorusGeometry(9,3.9,16,30,Math.PI*1.3),new THREE.MeshStandardMaterial({color:0xf3d9b0,roughness:0.5}));
+  frost.position.set(x,23.4,z);frost.rotation.z=0.4;bldgGroup.add(frost);
+  reg(x,z,"RANDY'S DONUTS",'DONUT',15,11,26);
+}
+// LAX Theme Building — crossed parabolic arches under a flying-saucer restaurant
+function lmTheme(x,z){
+  const wm=new THREE.MeshStandardMaterial({color:0xeeeae0,roughness:0.45,metalness:0.25});
+  for(let a=0;a<2;a++){
+    const arch=new THREE.Mesh(new THREE.TorusGeometry(20,1.7,10,22,Math.PI),wm);
+    arch.position.set(x,0,z);arch.rotation.y=a*Math.PI/2;arch.castShadow=true;bldgGroup.add(arch);
+  }
+  const col=new THREE.Mesh(new THREE.CylinderGeometry(2.2,2.2,20,12),wm);col.position.set(x,10,z);bldgGroup.add(col);
+  const disc=new THREE.Mesh(new THREE.CylinderGeometry(11,11,3,24),new THREE.MeshStandardMaterial({color:0xdfe3e6,roughness:0.3,metalness:0.6}));
+  disc.position.set(x,20,z);disc.castShadow=true;bldgGroup.add(disc);
+  const dome=new THREE.Mesh(new THREE.SphereGeometry(6,18,10,0,Math.PI*2,0,Math.PI/2),wm);dome.position.set(x,21.5,z);bldgGroup.add(dome);
+  reg(x,z,'LAX THEME BUILDING','LAX',22,22,24);
+}
+// Dodger Stadium — open bowl of tiered stands around a green field
+function lmDodger(x,z){
+  const field=new THREE.Mesh(new THREE.CylinderGeometry(13,13,0.6,28),new THREE.MeshStandardMaterial({color:0x4f8a3e,roughness:1}));
+  field.position.set(x,0.3,z);field.receiveShadow=true;bldgGroup.add(field);
+  const infield=new THREE.Mesh(new THREE.CylinderGeometry(5,5,0.7,20),new THREE.MeshStandardMaterial({color:0xb98a52,roughness:1}));
+  infield.position.set(x,0.4,z);bldgGroup.add(infield);
+  const standM=new THREE.MeshStandardMaterial({color:0xdad3c4,roughness:0.85});
+  for(let i=0;i<4;i++){
+    const ri=15+i*4.2, ro=ri+4.4;
+    const ring=new THREE.Mesh(new THREE.CylinderGeometry(ro,ri,3.4,32,1,true),standM);
+    ring.position.set(x,2+i*2.6,z);ring.castShadow=true;ring.receiveShadow=true;bldgGroup.add(ring);
+  }
+  // pennant poles
+  for(let i=0;i<8;i++){const a=i/8*Math.PI*2;const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,10,6),standM);pole.position.set(x+Math.cos(a)*30,7,z+Math.sin(a)*30);bldgGroup.add(pole);
+    const flag=new THREE.Mesh(new THREE.PlaneGeometry(3,2),new THREE.MeshStandardMaterial({color:pick([0x2f6fd0,0xffffff]),side:THREE.DoubleSide}));flag.position.set(x+Math.cos(a)*30+1.6,11,z+Math.sin(a)*30);bldgGroup.add(flag);}
+  reg(x,z,'DODGER STADIUM','DODGERS',31,31,14);
+}
+
+// place landmarks on chosen grid cells, then mark the cells taken
 (function placeLandmarks(){
-  const spots=[[6,5,lmUSBank],[5,6,lmDisney],[7,6,lmCityHall],[6,2,lmCapitol]];
+  const spots=[[6,5,lmUSBank],[5,6,lmDisney],[7,6,lmCityHall],[6,2,lmCapitol],
+    [2,10,lmRandys],[10,11,lmTheme],[10,2,lmDodger]];
   for(const[gx,gz,fn]of spots){landmarkCells.add(gx+','+gz);const[bx,bz]=blockCenter(gx,gz);fn(bx,bz);}
 })();
 
@@ -498,12 +557,43 @@ function carCollide(nx,nz){
   return null;
 }
 
+// ---------- landmark tour (checkpoint mode) ----------
+const cpRing=new THREE.Mesh(new THREE.TorusGeometry(11,1.3,10,36),new THREE.MeshBasicMaterial({color:0x6fd6ff}));
+cpRing.rotation.x=Math.PI/2;cpRing.visible=false;scene.add(cpRing);
+const cpBeam=new THREE.Mesh(new THREE.CylinderGeometry(2,2,240,12,1,true),new THREE.MeshBasicMaterial({color:0x6fd6ff,transparent:true,opacity:0.22,side:THREE.DoubleSide,depthWrite:false}));
+cpBeam.visible=false;scene.add(cpBeam);
+const tour={active:false,idx:0,visited:new Set(),t0:0,done:false};
+const tourEl=document.getElementById('tour');
+function toggleTour(){
+  tour.active=!tour.active;
+  if(tour.active){tour.visited=new Set();tour.idx=0;tour.done=false;tour.t0=window.__game.t;showToast('★ LANDMARK TOUR — follow the beam');}
+  else{cpRing.visible=cpBeam.visible=false;tourEl.style.display='none';showToast('TOUR OFF');}
+}
+function updateTour(){
+  if(!tour.active)return;
+  const order=landmarks;
+  while(tour.idx<order.length && tour.visited.has(tour.idx))tour.idx++;
+  if(tour.idx>=order.length){
+    cpRing.visible=cpBeam.visible=false;
+    if(!tour.done){tour.done=true;const s=(window.__game.t-tour.t0).toFixed(1);showToast('🏁 TOUR COMPLETE · '+s+'s');tourEl.textContent='🏁 ALL '+order.length+' LANDMARKS · '+s+'s';}
+    return;
+  }
+  const tgt=order[tour.idx];
+  const d=Math.hypot(st.x-tgt.x,st.z-tgt.z);
+  cpRing.position.set(tgt.x,3,tgt.z);cpBeam.position.set(tgt.x,110,tgt.z);cpRing.visible=cpBeam.visible=true;
+  const p=1+Math.sin(window.__game.t*4)*0.14;cpRing.scale.set(p,p,1);
+  if(d<44){tour.visited.add(tour.idx);tour.idx++;showToast('✓ '+tgt.name+'   ('+tour.visited.size+'/'+order.length+')');return;}
+  tourEl.style.display='block';
+  tourEl.textContent='TOUR ▸ '+tgt.name+'   '+Math.round(d)+'m   ('+tour.visited.size+'/'+order.length+')';
+}
+
 // ---------- controls ----------
 const keys={};
 addEventListener('keydown',e=>{const k=e.key.toLowerCase();keys[k]=true;
   if(k==='c')cycleCam();
   if(k==='r')respawn();
   if(k==='h')teleportHollywood();
+  if(k==='t')toggleTour();
   if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k))e.preventDefault();
 });
 addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;});
@@ -516,6 +606,7 @@ function bindTouch(id,prop){const el=document.getElementById(id);
 if('ontouchstart'in window)document.body.classList.add('touch');
 bindTouch('tLeft','left');bindTouch('tRight','right');bindTouch('tGas','gas');bindTouch('tBrake','brake');bindTouch('tDrift','drift');
 document.getElementById('tCam').addEventListener('touchstart',e=>{e.preventDefault();cycleCam();});
+document.getElementById('tTour').addEventListener('touchstart',e=>{e.preventDefault();toggleTour();});
 
 // ---------- camera modes ----------
 let viewMode=0; // 0 chase, 1 hood, 2 overhead cinematic
@@ -594,6 +685,10 @@ function drawMini(){
     mtx.save();mtx.translate(px,pz);mtx.rotate(Math.PI/4);mtx.fillRect(-2.6,-2.6,5.2,5.2);mtx.restore();
     if(showLbl){mtx.fillStyle='rgba(20,14,10,0.85)';mtx.fillRect(px-9,pz-11,18,7);mtx.fillStyle='#ffe6a0';mtx.fillText(lm.short,px,pz-5);}
   }
+  // tour: ring the current target
+  if(tour.active && tour.idx<landmarks.length){const lm=landmarks[tour.idx];
+    const px=clamp(lm.x*sc,-lim,lim),pz=clamp(lm.z*sc,-lim,lim);
+    mtx.strokeStyle='#6fd6ff';mtx.lineWidth=1.6;mtx.beginPath();mtx.arc(px,pz,6.5,0,7);mtx.stroke();}
   // player
   mtx.fillStyle='#ff4d3d';mtx.beginPath();
   const px=st.x*sc,pz=st.z*sc;mtx.moveTo(px+Math.sin(st.heading)*4,pz+Math.cos(st.heading)*4);
@@ -689,6 +784,7 @@ function step(dt){
   const mph=Math.round(spd*2.2);
   speedEl.firstChild.textContent=mph;
   gearEl.textContent=locationLabel(st.x,st.z);
+  updateTour();
 
   // engine sound
   if(eng){
