@@ -737,7 +737,7 @@ function step(dt){
   const spd=Math.abs(st.vf);
   // steering effectiveness scales with speed
   const turn=st.steer*2.4*dt*clamp(spd/7,0,1)/(1+spd*0.015);
-  st.heading+=turn;
+  st.heading-=turn;  // steer right (+) curves toward screen-right
   if(drifting)st.vs+=st.steer*-Math.sign(st.vf||1)*spd*0.5*dt;
   st.vs*=(1-(drifting?2.2:6.5)*dt);
 
@@ -763,7 +763,7 @@ function step(dt){
 
   // apply to mesh
   player.group.position.set(st.x,0,st.z);
-  player.group.rotation.y=st.heading+ (drifting?st.steer*0.25:0);
+  player.group.rotation.y=st.heading- (drifting?st.steer*0.25:0);
   // lean
   player.group.rotation.z=lerp(player.group.rotation.z,-st.steer*spd*0.006,0.1);
   for(const w of player.wheels){w.spin.rotation.x+=st.vf*dt/0.5;}
