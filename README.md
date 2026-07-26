@@ -1,22 +1,15 @@
 # City of Angels — 3D LA Driving
 
-A single-file, zero-dependency 3D Los Angeles free-drive built with Three.js (loaded from CDN via importmap). Golden-hour smog light, a downtown glass-tower canyon, palm-lined boulevards, live traffic, and the Hollywood sign on the hills to the north.
+A 3D Los Angeles free-drive: golden-hour downtown tower canyon, palm-lined boulevards, live traffic, 9 signature LA landmarks (US Bank Tower, City Hall, Capitol Records, Walt Disney Concert Hall, Griffith Observatory, Randy's Donuts, LAX Theme Building, Dodger Stadium, the Hollywood Sign), and a landmark **tour mode**.
 
-Just open `index.html` — no build step.
+Open `index.html` — no build step.
+
+## Built on the shared engine
+
+This game runs on **[golden-hour-engine](https://github.com/icomppower/golden-hour-engine)** — the shared 3D city-driving engine. The engine (a vendored copy of `engine.js`) provides controls, physics, cameras, HUD, minimap and tour mode; this repo only supplies the LA world in `cities/los_angeles.js`. To refresh the engine: `../golden-hour-engine/sync.sh .`
 
 ## Controls
 - **W / ↑** throttle · **S / ↓** brake / reverse
 - **A D / ← →** steer · **SPACE** drift
-- **C** cycle camera (chase / hood / cinematic orbit)
-- **R** reset to last safe spot · **H** jump to the Hollywood sign
+- **C** camera (chase / hood / cinematic) · **R** reset · **T** landmark tour
 - Touch controls appear automatically on mobile.
-
-## What's in the world
-- Procedural 13×13 city grid — buildings grow taller toward downtown, a central plaza with a fountain and palms
-- Emissive-window skyscrapers with rooftop beacons, sidewalks, dashed lane markings
-- ~46 AI traffic cars looping the avenues, live minimap
-- Layered distant mountains + the HOLLYWOOD sign seated on displaced hill terrain
-- Golden-hour sky shader, ACES tone mapping, bloom
-
-## Tech
-Single `index.html`, `three@0.160.0` from unpkg. Deterministic procedural generation (seeded RNG) so the city is identical every load.
