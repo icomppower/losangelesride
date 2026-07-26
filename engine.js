@@ -178,6 +178,16 @@ export function runCity(CITY){
   const districts=world.districts||CITY.districts||(()=>'');
   const B=CITY.bounds||{x0:-worldSize/2,x1:worldSize/2,z0:-worldSize/2,z1:worldSize/2};
 
+  // ground-normal car tilt (terrain cities set CITY.tiltToGround)
+  const _up=new THREE.Vector3(),_fw=new THREE.Vector3(),_rt=new THREE.Vector3(),_bm=new THREE.Matrix4(),_qq=new THREE.Quaternion();
+  function orientCar(obj,x,z,heading,smooth){
+    const e=1.6;_up.set(groundH(x-e,z)-groundH(x+e,z),2*e,groundH(x,z-e)-groundH(x,z+e)).normalize();
+    _fw.set(Math.sin(heading),0,Math.cos(heading));_fw.addScaledVector(_up,-_fw.dot(_up)).normalize();
+    _rt.crossVectors(_up,_fw);_bm.makeBasis(_rt,_up,_fw);
+    obj.quaternion.slerp(_qq.setFromRotationMatrix(_bm),smooth);
+    const y=groundH(x,z);obj.position.set(x,lerp(obj.position.y,y,smooth),z);return y;
+  }
+
   // ---------- player ----------
   const player=buildCar(TH.carColor);scene.add(player.group);
   const START=CITY.start||{x:0,z:0,heading:0};
@@ -327,6 +337,8 @@ export function runCity(CITY){
 
     const fx=Math.sin(st.heading),fz=Math.cos(st.heading);
     const rxc=Math.cos(st.heading),rzc=-Math.sin(st.heading);
+    if(CITY.slopeGravity){const e=2.0,gx=(groundH(st.x+e,st.z)-groundH(st.x-e,st.z))/(2*e),gz=(groundH(st.x,st.z+e)-groundH(st.x,st.z-e))/(2*e);
+      const ax=-9.8*0.5*gx,az=-9.8*0.5*gz;st.vf+=(ax*fx+az*fz)*dt;st.vs+=(ax*rxc+az*rzc)*dt;}
     let nx=st.x+(fx*st.vf+rxc*st.vs)*dt;
     let nz=st.z+(fz*st.vf+rzc*st.vs)*dt;
 
@@ -337,11 +349,13 @@ export function runCity(CITY){
     }
     nx=clamp(nx,B.x0,B.x1);nz=clamp(nz,B.z0,B.z1);
     st.x=nx;st.z=nz;st.y=groundH(st.x,st.z);
-    if(!collide(st.x,st.z)&&spd>2)lastSafe={x:st.x,z:st.z,h:st.heading};
+    if(world.onVoid&&world.onVoid(st.x,st.z)){respawn();return;}
+    if(!collide(st.x,st.z)&&spd>2&&st.y>(CITY.safeMinY??-1e9))lastSafe={x:st.x,z:st.z,h:st.heading};
 
-    player.group.position.set(st.x,st.y,st.z);
-    player.group.rotation.y=st.heading-(drifting?st.steer*0.25:0);
-    player.group.rotation.z=lerp(player.group.rotation.z,-st.steer*spd*0.006,0.1);
+    if(CITY.tiltToGround){st.y=orientCar(player.group,st.x,st.z,st.heading,1-Math.exp(-14*dt));}
+    else{player.group.position.set(st.x,st.y,st.z);
+      player.group.rotation.y=st.heading-(drifting?st.steer*0.25:0);
+      player.group.rotation.z=lerp(player.group.rotation.z,-st.steer*spd*0.006,0.1);}
     for(const w of player.wheels)w.spin.rotation.x+=st.vf*dt/0.5;
 
     if(world.update)world.update(dt);
@@ -363,6 +377,7 @@ export function runCity(CITY){
       camPos.lerp(tp,1-Math.exp(-16*dt));camera.position.copy(camPos);camLook.set(st.x+fx*24,y+2.0,st.z+fz*24);camera.lookAt(camLook);
       const tf=62+spd*0.3;if(Math.abs(camera.fov-tf)>0.1){camera.fov=lerp(camera.fov,tf,0.08);camera.updateProjectionMatrix();}}
     else{const back=13+spd*0.14;const tp=new THREE.Vector3(st.x-fx*back,y+6.5+spd*0.03,st.z-fz*back);
+      tp.y=Math.max(tp.y,groundH(tp.x,tp.z)+1.8);
       camPos.lerp(tp,1-Math.exp(-6*dt));camera.position.copy(camPos);camLook.set(st.x+fx*8,y+1.8,st.z+fz*8);camera.lookAt(camLook);
       const tf=60+spd*0.32;if(Math.abs(camera.fov-tf)>0.1){camera.fov=lerp(camera.fov,tf,0.08);camera.updateProjectionMatrix();}}
     sun.position.set(st.x+TH.sunPos[0],TH.sunPos[1],st.z+TH.sunPos[2]);sun.target.position.set(st.x,st.y,st.z);
