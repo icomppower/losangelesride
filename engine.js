@@ -192,7 +192,12 @@ export function runCity(CITY){
   const player=buildCar(TH.carColor);scene.add(player.group);
   const START=CITY.start||{x:0,z:0,heading:0};
   const st={x:START.x,z:START.z,heading:START.heading,vf:0,vs:0,steer:0,y:groundH(START.x,START.z)};
+  // A trail of recent safe road positions. `lastSafe` alone was useless for RESET:
+  // it is refreshed every frame while you drive, so resetting dropped you exactly
+  // where you already stood. safeTrail[0] is ~1.6s behind you, always on a road.
   let lastSafe={x:START.x,z:START.z,h:START.heading};
+  const safeTrail=[{...lastSafe}];
+  let trailAcc=0;
 
   // ---------- text / title ----------
   document.title=`${CITY.name||'Golden Hour'} — 3D City Driving`;
@@ -217,6 +222,8 @@ export function runCity(CITY){
   if('ontouchstart'in window)document.body.classList.add('touch');
   bindTouch('tLeft','left');bindTouch('tRight','right');bindTouch('tGas','gas');bindTouch('tBrake','brake');bindTouch('tDrift','drift');
   const tCam=document.getElementById('tCam');if(tCam)tCam.addEventListener('touchstart',e=>{e.preventDefault();cycleCam();});
+  const tReset=document.getElementById('tReset');
+  if(tReset)tReset.addEventListener('touchstart',e=>{e.preventDefault();respawn();});
   const tTour=document.getElementById('tTour');if(tTour)tTour.addEventListener('touchstart',e=>{e.preventDefault();toggleTour();});
 
   // ---------- camera modes ----------
@@ -238,7 +245,17 @@ export function runCity(CITY){
     if(bd>140)nearLm=null;
     return districts(x,z);
   }
-  function respawn(){st.x=lastSafe.x;st.z=lastSafe.z;st.heading=lastSafe.h;st.vf=0;st.vs=0;showToast('RESET');}
+  function respawn(){
+    let to=safeTrail[0], home=false;
+    if(!to||Math.hypot(st.x-to.x,st.z-to.z)<3){to={x:START.x,z:START.z,h:START.heading};home=true;}
+    st.x=to.x;st.z=to.z;st.heading=to.h;st.vf=0;st.vs=0;st.steer=0;st.y=groundH(to.x,to.z);
+    // snap the car and the camera, otherwise both lerp across the map
+    if(CITY.tiltToGround)st.y=orientCar(player.group,st.x,st.z,st.heading,1);
+    else player.group.position.set(st.x,st.y,st.z);
+    camPos.set(st.x-Math.sin(st.heading)*14,st.y+7,st.z-Math.cos(st.heading)*14);
+    safeTrail.length=0;safeTrail.push({x:to.x,z:to.z,h:to.h});trailAcc=0;
+    showToast(home?'RESET · BACK TO START':'RESET');
+  }
 
   // ---------- landmark tour ----------
   const cpRing=new THREE.Mesh(new THREE.TorusGeometry(11,1.3,10,36),new THREE.MeshBasicMaterial({color:0x6fd6ff}));
@@ -350,7 +367,11 @@ export function runCity(CITY){
     nx=clamp(nx,B.x0,B.x1);nz=clamp(nz,B.z0,B.z1);
     st.x=nx;st.z=nz;st.y=groundH(st.x,st.z);
     if(world.onVoid&&world.onVoid(st.x,st.z)){respawn();return;}
-    if(!collide(st.x,st.z)&&spd>2&&st.y>(CITY.safeMinY??-1e9))lastSafe={x:st.x,z:st.z,h:st.heading};
+    if(!collide(st.x,st.z)&&spd>2&&st.y>(CITY.safeMinY??-1e9)){
+      lastSafe={x:st.x,z:st.z,h:st.heading};
+      trailAcc+=dt;
+      if(trailAcc>0.4){trailAcc=0;safeTrail.push({...lastSafe});if(safeTrail.length>5)safeTrail.shift();}
+    }
 
     if(CITY.tiltToGround){st.y=orientCar(player.group,st.x,st.z,st.heading,1-Math.exp(-14*dt));}
     else{player.group.position.set(st.x,st.y,st.z);

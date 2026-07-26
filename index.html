@@ -63,7 +63,7 @@
 <div id="toast"></div>
 <div id="touchui">
   <div class="tz"><div class="tbtn small" id="tTour">TOUR</div><div class="tbtn" id="tLeft">◀</div><div class="tbtn" id="tRight">▶</div></div>
-  <div class="tz"><div class="tbtn small" id="tCam">CAM</div><div class="tbtn small" id="tDrift">DRIFT</div><div class="tbtn" id="tBrake">▼</div><div class="tbtn big" id="tGas">▲</div></div>
+  <div class="tz"><div class="tbtn small" id="tReset">RESET</div><div class="tbtn small" id="tCam">CAM</div><div class="tbtn small" id="tDrift">DRIFT</div><div class="tbtn" id="tBrake">▼</div><div class="tbtn big" id="tGas">▲</div></div>
 </div>
 <div id="overlay">
   <h1>GOLDEN HOUR</h1>
@@ -78,9 +78,9 @@
   See README.md to build a new city.
 -->
 <script type="module">
-import { runCity } from './engine.js';
+import { runCity } from './engine.js?v=1';
 const name=(new URLSearchParams(location.search).get('city')||'los_angeles').replace(/[^a-z0-9_-]/gi,'');
-async function load(n){const m=await import(`./cities/${n}.js`);return m.CITY||m.default;}
+async function load(n){const m=await import(`./cities/${n}.js?v=1`);return m.CITY||m.default;}
 try{ runCity(await load(name)); }
 catch(err){ console.error('City "'+name+'" failed to load; falling back to los_angeles.',err); runCity(await load('los_angeles')); }
 </script>
