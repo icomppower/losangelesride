@@ -65,7 +65,7 @@
 <div id="overlay">
   <h1>CITY OF ANGELS</h1>
   <h2>3D LOS ANGELES · FREE DRIVE</h2>
-  <div class="keys">W A S D / ARROWS — DRIVE&nbsp;&nbsp;·&nbsp;&nbsp;SPACE — DRIFT<br>C — CAMERA&nbsp;&nbsp;·&nbsp;&nbsp;R — RESET&nbsp;&nbsp;·&nbsp;&nbsp;H — HOLLYWOOD</div>
+  <div class="keys">W A S D / ARROWS — DRIVE&nbsp;&nbsp;·&nbsp;&nbsp;SPACE — DRIFT<br>C — CAMERA&nbsp;&nbsp;·&nbsp;&nbsp;R — RESET&nbsp;&nbsp;·&nbsp;&nbsp;H — HOLLYWOOD<br><span style="opacity:.7">◆ find US Bank Tower · City Hall · Capitol Records · Disney Hall · Griffith · the Hollywood Sign</span></div>
   <button id="startBtn">DRIVE</button>
 </div>
 
@@ -252,10 +252,76 @@ function makeBuilding(x,z,footprint,h,downtownness){
 }
 const beacons=[];
 
+// ---------- LA landmarks ----------
+const landmarks=[];              // {x,z,name,short} for minimap + nameplate
+const landmarkCells=new Set();   // "gx,gz" grid cells taken by a landmark
+function blockCenter(gx,gz){return [-HALF+BLOCK/2+gx*cell, -HALF+BLOCK/2+gz*cell];}
+function reg(x,z,name,short,hw,hd,h){landmarks.push({x,z,name,short});buildings.push({x,z,hw,hd,h});}
+
+// US Bank Tower — tallest downtown, illuminated crown "halo"
+function lmUSBank(x,z){
+  const h=310, R=17;
+  const tex=pick(winTexPool).clone();tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(6,h/9);
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(R,R*1.15,h,28,1,true),
+    new THREE.MeshStandardMaterial({map:tex,color:0x6a7488,roughness:0.4,metalness:0.35,emissive:0xffe6b0,emissiveMap:tex,emissiveIntensity:0.8,side:THREE.DoubleSide}));
+  body.position.set(x,h/2,z);body.castShadow=true;bldgGroup.add(body);
+  const cap=new THREE.Mesh(new THREE.CylinderGeometry(R*0.7,R,10,28),roofMat);cap.position.set(x,h+5,z);bldgGroup.add(cap);
+  // glowing crown ring
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(R*0.95,1.4,8,28),new THREE.MeshBasicMaterial({color:0x9fd0ff}));
+  ring.rotation.x=Math.PI/2;ring.position.set(x,h+1,z);bldgGroup.add(ring);
+  const spire=new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.8,30,6),roofMat);spire.position.set(x,h+25,z);bldgGroup.add(spire);
+  const beacon=new THREE.Mesh(new THREE.SphereGeometry(1.4,8,8),new THREE.MeshBasicMaterial({color:0xff3a2a}));beacon.position.set(x,h+40,z);bldgGroup.add(beacon);beacons.push(beacon);
+  reg(x,z,'U.S. BANK TOWER','USB',R+2,R+2,h);
+}
+// LA City Hall — white stepped tower with pyramid lantern
+function lmCityHall(x,z){
+  const wm=new THREE.MeshStandardMaterial({color:0xe9e3d2,roughness:0.85});
+  const base=new THREE.Mesh(new THREE.BoxGeometry(46,14,46),wm);base.position.set(x,7,z);base.castShadow=true;base.receiveShadow=true;bldgGroup.add(base);
+  const h=120;
+  const tex=pick(winTexPool).clone();tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(3,h/10);
+  const tower=new THREE.Mesh(new THREE.BoxGeometry(20,h,20),new THREE.MeshStandardMaterial({color:0xeee7d6,roughness:0.8,emissive:0xffedc0,emissiveMap:tex,emissiveIntensity:0.4}));
+  tower.position.set(x,14+h/2,z);tower.castShadow=true;bldgGroup.add(tower);
+  const step=new THREE.Mesh(new THREE.BoxGeometry(26,8,26),wm);step.position.set(x,14+h+4,z);bldgGroup.add(step);
+  const pyr=new THREE.Mesh(new THREE.ConeGeometry(15,20,4),wm);pyr.rotation.y=Math.PI/4;pyr.position.set(x,14+h+18,z);pyr.castShadow=true;bldgGroup.add(pyr);
+  const lant=new THREE.Mesh(new THREE.SphereGeometry(2,10,10),new THREE.MeshBasicMaterial({color:0xfff2c0}));lant.position.set(x,14+h+30,z);bldgGroup.add(lant);
+  reg(x,z,'LOS ANGELES CITY HALL','CH',24,24,h);
+}
+// Capitol Records — stack-of-records cylinder + needle beacon
+function lmCapitol(x,z){
+  const R=13,h=64;
+  const core=new THREE.Mesh(new THREE.CylinderGeometry(R,R,h,24),new THREE.MeshStandardMaterial({color:0xd8cbb0,roughness:0.7,emissive:0x2a2418,emissiveIntensity:0.4}));
+  core.position.set(x,h/2+4,z);core.castShadow=true;bldgGroup.add(core);
+  const ledgeM=new THREE.MeshStandardMaterial({color:0x3a3a42,roughness:0.6});
+  for(let i=0;i<6;i++){const l=new THREE.Mesh(new THREE.CylinderGeometry(R+2.2,R+2.2,1.6,24),ledgeM);l.position.set(x,12+i*10,z);l.castShadow=true;bldgGroup.add(l);}
+  const roof=new THREE.Mesh(new THREE.CylinderGeometry(R,R,4,24),new THREE.MeshStandardMaterial({color:0xe7ddc4,roughness:0.7}));roof.position.set(x,h+6,z);bldgGroup.add(roof);
+  const needle=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.5,34,6),roofMat);needle.position.set(x,h+23,z);bldgGroup.add(needle);
+  const beacon=new THREE.Mesh(new THREE.SphereGeometry(1.5,8,8),new THREE.MeshBasicMaterial({color:0xff2a1a}));beacon.position.set(x,h+40,z);bldgGroup.add(beacon);beacons.push(beacon);
+  reg(x,z,'CAPITOL RECORDS','CAP',R+2,R+2,h);
+}
+// Walt Disney Concert Hall — curved stainless-steel sails
+function lmDisney(x,z){
+  const steel=new THREE.MeshStandardMaterial({color:0xcfd6dd,roughness:0.22,metalness:0.95,side:THREE.DoubleSide});
+  const podium=new THREE.Mesh(new THREE.BoxGeometry(48,10,48),new THREE.MeshStandardMaterial({color:0xb9bfc6,roughness:0.4,metalness:0.7}));
+  podium.position.set(x,5,z);podium.castShadow=true;podium.receiveShadow=true;bldgGroup.add(podium);
+  const sails=[[-12,10,26,0.5,-0.3],[10,10,34,-0.4,0.4],[0,14,40,0.2,0.1],[-4,8,22,0.7,0.6],[14,10,28,-0.6,-0.2]];
+  for(const[sx,sz,sh,rx,rz]of sails){
+    const sail=new THREE.Mesh(new THREE.CylinderGeometry(sh*0.6,sh*0.6,sh,20,1,true,0,Math.PI*1.1),steel);
+    sail.position.set(x+sx,10+sh*0.4,z+sz);sail.rotation.set(rx,rr(0,Math.PI*2),rz);sail.scale.set(1,1,0.55);sail.castShadow=true;bldgGroup.add(sail);
+  }
+  reg(x,z,'WALT DISNEY CONCERT HALL','WDCH',26,26,20);
+}
+
+// place landmarks on chosen downtown/Hollywood grid cells, then mark the cells taken
+(function placeLandmarks(){
+  const spots=[[6,5,lmUSBank],[5,6,lmDisney],[7,6,lmCityHall],[6,2,lmCapitol]];
+  for(const[gx,gz,fn]of spots){landmarkCells.add(gx+','+gz);const[bx,bz]=blockCenter(gx,gz);fn(bx,bz);}
+})();
+
 // place buildings per block, avoiding downtown holes for a plaza
 (function placeCity(){
   const cx=(GRID-1)/2, cyz=(GRID-1)/2;
   for(let gx=0;gx<GRID;gx++)for(let gz=0;gz<GRID;gz++){
+    if(landmarkCells.has(gx+','+gz))continue;
     const bx=-HALF+BLOCK/2+gx*cell, bz=-HALF+BLOCK/2+gz*cell;
     const dc=Math.hypot(gx-cx,gz-cyz)/(GRID*0.5);  // 0 center .. ~1 edge
     const downtownness=clamp(1-dc,0,1);
@@ -342,6 +408,21 @@ function hillH(x,z){
     const post=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,20,6),trunkMat);post.position.set(x,y-11,z-1);grp.add(post);
   });
   scene.add(grp);
+  landmarks.push({x:HOLLY_POS.x,z:-HALF-40,name:'HOLLYWOOD SIGN',short:'★'});
+})();
+// Griffith Observatory — white deco building with three domes, on the hillside
+(function lmGriffith(){
+  const gx=360, gz=-HALF-470, gy=hillH(gx,gz);
+  const grp=new THREE.Group();grp.position.set(gx,gy,gz);
+  const wm=new THREE.MeshStandardMaterial({color:0xeae3d0,roughness:0.8});
+  const body=new THREE.Mesh(new THREE.BoxGeometry(46,12,16),wm);body.position.y=6;body.castShadow=true;grp.add(body);
+  const dm=new THREE.MeshStandardMaterial({color:0xbfc4c2,roughness:0.5,metalness:0.3});
+  const cDome=new THREE.Mesh(new THREE.SphereGeometry(8,18,12),dm);cDome.position.set(0,12,0);cDome.castShadow=true;grp.add(cDome);
+  for(const sx of[-18,18]){const d=new THREE.Mesh(new THREE.SphereGeometry(5,16,10),dm);d.position.set(sx,12,0);d.castShadow=true;grp.add(d);
+    const drum=new THREE.Mesh(new THREE.CylinderGeometry(5,5,4,16),wm);drum.position.set(sx,9,0);grp.add(drum);}
+  scene.add(grp);
+  landmarks.push({x:gx,z:gz,name:'GRIFFITH OBSERVATORY',short:'GO'});
+  buildings.push({x:gx,z:gz,hw:24,hd:9,h:20});
 })();
 function letterTex(ch){
   const c=document.createElement('canvas');c.width=128;c.height=180;const x=c.getContext('2d');
@@ -454,6 +535,18 @@ function districtName(x,z){
   if(dc<0.62)return'MID-CITY';
   return'THE BOULEVARDS';
 }
+let nearLm=null;
+// nearest landmark within range → drives the HUD nameplate + a one-shot toast
+function locationLabel(x,z){
+  let best=null,bd=1e9;
+  for(const lm of landmarks){const d=Math.hypot(x-lm.x,z-lm.z);if(d<bd){bd=d;best=lm;}}
+  if(best && bd<95){
+    if(nearLm!==best){nearLm=best;showToast('◉ '+best.name);}
+    return '◉ '+best.name;
+  }
+  if(bd>140)nearLm=null;
+  return districtName(x,z);
+}
 
 function respawn(){st.x=lastSafe.x;st.z=lastSafe.z;st.heading=lastSafe.h;st.vf=0;st.vs=0;showToast('RESET');}
 function teleportHollywood(){st.x=0;st.z=-HALF-14;st.heading=Math.PI;st.vf=0;st.vs=0;showToast('HOLLYWOOD');}
@@ -489,11 +582,18 @@ function drawMini(){
   // blocks
   mtx.fillStyle='rgba(120,120,130,0.5)';
   for(const b of buildings){if(b.h<6)continue;mtx.fillRect(b.x*sc-1.3,b.z*sc-1.3,2.6,2.6);}
-  // hollywood marker
-  mtx.fillStyle='#ffcf6a';mtx.fillRect(HOLLY_POS.x*sc-3,(-HALF-40)*sc-2,6,3);
   // traffic
   mtx.fillStyle='rgba(255,180,90,0.7)';
   for(const t of traffic){const px=t.road.axis==='z'?t.road.fixed:t.s, pz=t.road.axis==='z'?t.s:t.road.fixed;mtx.fillRect(px*sc-0.8,pz*sc-0.8,1.6,1.6);}
+  // landmarks — gold diamonds, clamped to the minimap edge if off-grid (north hills)
+  const lim=R/2-9, showLbl=R>=140;
+  mtx.font='7px -apple-system,Arial';mtx.textAlign='center';
+  for(const lm of landmarks){
+    let px=clamp(lm.x*sc,-lim,lim), pz=clamp(lm.z*sc,-lim,lim);
+    mtx.fillStyle='#ffd45a';
+    mtx.save();mtx.translate(px,pz);mtx.rotate(Math.PI/4);mtx.fillRect(-2.6,-2.6,5.2,5.2);mtx.restore();
+    if(showLbl){mtx.fillStyle='rgba(20,14,10,0.85)';mtx.fillRect(px-9,pz-11,18,7);mtx.fillStyle='#ffe6a0';mtx.fillText(lm.short,px,pz-5);}
+  }
   // player
   mtx.fillStyle='#ff4d3d';mtx.beginPath();
   const px=st.x*sc,pz=st.z*sc;mtx.moveTo(px+Math.sin(st.heading)*4,pz+Math.cos(st.heading)*4);
@@ -588,7 +688,7 @@ function step(dt){
   // HUD
   const mph=Math.round(spd*2.2);
   speedEl.firstChild.textContent=mph;
-  gearEl.textContent=districtName(st.x,st.z);
+  gearEl.textContent=locationLabel(st.x,st.z);
 
   // engine sound
   if(eng){
